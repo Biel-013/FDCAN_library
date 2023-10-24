@@ -14,8 +14,9 @@
 #define CAN_IDS_NUMBER 400
 
 /* USADO PARA REGISTRAR UM BUFFER DA CAN */
-typedef struct {
-	uint8_t* Data_buf[CAN_IDS_NUMBER];
+typedef struct
+{
+	uint8_t *Data_buf[CAN_IDS_NUMBER];
 	uint8_t Size_buf[CAN_IDS_NUMBER];
 } CAN_Buffer_t;
 
@@ -54,15 +55,85 @@ void CAN_Init(void);
  * @param  DATA: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void canMessageReceived(uint16_t ID, uint8_t *DATA);
+void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA);
 
 /**
  * @brief  Envio de mensagem pelo barramento CAN
- * @param  ID: Identificador da mensagem
- * @param  DATA: Buffer de dados da mensagem
+ * @param  Identifier: Identificador da mensagem
+ * @param  data: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void CAN_TxData(uint16_t id, uint16_t *data);
+void CAN_TxData(uint16_t Identifier, uint8_t *data, uint8_t Size);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "unsigned int 8 bits".
+ */
+uint8_t CAN_RxData_UINT8(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "int 8 bits".
+ */
+int8_t CAN_RxData_INT8(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "unsigned int 8 bits".
+ */
+uint16_t CAN_RxData_UINT16(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "int 8 bits".
+ */
+int16_t CAN_RxData_INT16(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "unsigned int 8 bits".
+ */
+uint32_t CAN_RxData_UINT32(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "int 8 bits".
+ */
+int32_t CAN_RxData_INT32(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "unsigned int 8 bits".
+ */
+unsigned char CAN_RxData_UCHAR(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "int 8 bits".
+ */
+char CAN_RxData_CHAR(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "unsigned int 8 bits".
+ */
+float CAN_RxData_FLOAT(uint16_t Identifier);
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  Identifier: Identificador da mensagem
+ * @retval Dados armazenados em formato "int 8 bits".
+ */
+double CAN_RxData_DOUBLE(uint16_t Identifier);
 
 /**
  * @brief  Função para aviso de erro
