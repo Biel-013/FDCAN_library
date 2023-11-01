@@ -1,7 +1,7 @@
 /*
- *      Comunicação via CAN - CAN.c
+ *      Comunicação via FDCAN - FDCAN.c
  *
- *      Data: 13 de junho, 2023
+ *      Data: 01 de novembro, 2023
  *      Autor: Gabriel Luiz
  *      Contato: (31) 97136-4334 || gabrielluiz.eletro@gmail.com
  */
@@ -44,7 +44,7 @@ FDCAN_TxHeaderTypeDef TxHeader; /*Struct de armazenamento temporario de
  de informações e dados para envio na CAN - Não inclui os dados */
 
 FDCAN_RxHeaderTypeDef RxHeader; /*Struct de armazenamento temporario de
-  de informações recebidas pela CAN - Não inclui os dados */
+ de informações recebidas pela CAN - Não inclui os dados */
 
 uint8_t RxData[8]; /*Vetor para armazenamento temporario de dados recebidos
  pela CAN*/
@@ -60,10 +60,9 @@ uint8_t RxData[8]; /*Vetor para armazenamento temporario de dados recebidos
  * @param  RxFifo0ITs: FIFO de interrupção utilizado
  * @retval ***NONE***
  */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-{
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
 	/* Pisca o  LED 2 caso tenha algo para receber pela CAN */
-	HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_4);
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
 
 	/* Pega as informações e dados da CAN, e armazena respectivamente em RxHeader e RxData */
 	HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0, &RxHeader, RxData);
@@ -73,24 +72,21 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 	/* Ativa novamente a notificação para caso haja algo a receber */
 	if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-									   0) != HAL_OK)
-	{
+			0) != HAL_OK) {
 		/* Caso de errado, chama a função de erro */
 		Error_Handler();
 	}
 }
-
 /**
  * @brief  Configura a CAN, overwrite do .IOC
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_Configure_Init()
-{
+void CAN_Configure_Init() {
 	/* Configura os parâmetros da CAN - LEITURA DO RELATORIO */
 	hfdcan1.Instance = FDCAN1;
 	hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_NO_BRS;
-	hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+	hfdcan1.Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
 	hfdcan1.Init.AutoRetransmission = DISABLE;
 	hfdcan1.Init.TransmitPause = DISABLE;
 	hfdcan1.Init.ProtocolException = DISABLE;
@@ -118,8 +114,7 @@ void CAN_Configure_Init()
 	hfdcan1.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
 
 	/* Inicializa a CAN com os parâmetros definidos */
-	if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
-	{
+	if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK) {
 		/* Caso de errado, chama a função de erro */
 		Error_Handler();
 	}
@@ -130,13 +125,13 @@ void CAN_Configure_Init()
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_stream_Init(void)
-{
+void CAN_stream_Init(void) {
 	/* Zera cada posição do vetor de dados - Redundância */
-	for (uint16_t i = 0; i < CAN_IDS_NUMBER; i++)
-	{
+	for (uint16_t i = 0; i < CAN_IDS_NUMBER; i++) {
 		free(CAN_stream.Data_buf[i]);
-		CAN_stream.Size_buf[i] == 0;
+		CAN_stream.Data_buf[i] = NULL;
+		*CAN_stream.Data_buf[i] = 0;
+		CAN_stream.Size_buf[i] = 0;
 	}
 }
 
@@ -145,38 +140,34 @@ void CAN_stream_Init(void)
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_Init()
-{
+void CAN_Init() {
 	/* Chama a função de configuração dos parâmetros da CAN */
 	//	CAN_Configure_Init();
-
 	/* Chama a função de limpeza do vetor de armazenamento de dados */
-	Clean_CAN_stream();
+	CAN_stream_Init();
 
 	/* Começa a comunicação via CAN */
-	if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
-	{
+	if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
 		// Caso de errado, chama a função de erro
 		Error_Handler();
 	}
 
 	/* Ativa a notificação para caso haja algo a receber */
 	if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-									   0) != HAL_OK)
-	{
+			0) != HAL_OK) {
 		/* Caso de errado, chama a função de erro */
 		Error_Handler();
 	}
 
 	/* Configura os parametros para envio de mensagem */
-	TxHeader.IdType = FDCAN_STANDARD_ID;			  // TIPO DE IDENTIFICADOR - STANDARD OU EXTENDED
-	TxHeader.TxFrameType = FDCAN_DATA_FRAME;		  // TIPO DE FLAME - DATA OU REMOTE
-	TxHeader.DataLength = FDCAN_DLC_BYTES_8;		  // TAMANHO DOS DADOS - 0 A 64 WORDS - CONVERTIDO PRA 4
-	TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;  // INDICADOR DE ERRO - ATIVO OU PASSIVO
-	TxHeader.BitRateSwitch = FDCAN_BRS_OFF;			  // BIT DE INTERRUPÇÃO - ON OU OFF
-	TxHeader.FDFormat = FDCAN_CLASSIC_CAN;			  // TIPO DE CAN - NORMAL OU FDCAN
+	TxHeader.IdType = FDCAN_STANDARD_ID; // TIPO DE IDENTIFICADOR - STANDARD OU EXTENDED
+	TxHeader.TxFrameType = FDCAN_DATA_FRAME; // TIPO DE FLAME - DATA OU REMOTE
+	TxHeader.DataLength = FDCAN_DLC_BYTES_8; // TAMANHO DOS DADOS - 0 A 64 WORDS - CONVERTIDO PRA 4
+	TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE; // INDICADOR DE ERRO - ATIVO OU PASSIVO
+	TxHeader.BitRateSwitch = FDCAN_BRS_OFF;	// BIT DE INTERRUPÇÃO - ON OU OFF
+	TxHeader.FDFormat = FDCAN_FD_CAN;		// TIPO DE CAN - NORMAL OU FDCAN
 	TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS; // ARMAZENAMENTO DE EVENTOS DE ENVIO - ON OU OFF
-	TxHeader.MessageMarker = 0;						  // MASCARA DA MENSAGEM - 0 A 0xFF
+	TxHeader.MessageMarker = 0;				// MASCARA DA MENSAGEM - 0 A 0xFF
 }
 
 /**
@@ -185,12 +176,11 @@ void CAN_Init()
  * @param  DATA: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA)
-{
+void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA) {
 	/* Caso o ID passe do maior valor, a função quebra */
 
 	/* Variavel para armazenamento do tamanho de dados */
-	uint8_t SIZE_DATA = hRxFDCAN->DataLength;
+	uint8_t SIZE_DATA = hRxFDCAN->DataLength >> 16U;
 
 	/* Variavel para armazenamento do identificador */
 	uint16_t IDENTIFIER = hRxFDCAN->Identifier;
@@ -210,7 +200,7 @@ void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA)
 
 	/* Armazena o valor do dado na memória alocada*/
 	for (int i = 0; i < SIZE_DATA; i++)
-		CAN_stream.Data_buf[IDENTIFIER][0] = DATA[i];
+		CAN_stream.Data_buf[IDENTIFIER][i] = DATA[i];
 }
 
 /**
@@ -219,35 +209,84 @@ void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA)
  * @param  DATA: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void CAN_TxData(uint16_t Identifier, uint8_t *data, uint8_t Size)
-{
-	
-	uint64_t Buffer = 0;
+void CAN_TxData(uint16_t Identifier, int64_t data) {
+	uint64_t *pData = &data;
 	uint32_t Size_data = 0;
 
-	for (int i = Size - 1; i >= 0; i--)
-		Buffer += data[i] << 8 * i;
-
-	for (int i = 0; i < Size; i++)
-		if (Buffer >> 8 * i == 0)
-		{
-			Size_data = i << 16;
+	for (int i = 0; i < 8; i++)
+		if (data >> 8 * i == 0) {
+			Size_data = i << 16U;
 			break;
 		}
 
-
 	/* Armazena o identificador da mensagem no struct de informação (TxHeader) */
 	TxHeader.Identifier = Identifier;
-	
 
 	TxHeader.DataLength = Size_data;
 
 	/* Envia os dados recebidos na chamada (data) pela CAN, de acordo com as informações de TxHeader */
-	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t *)Buffer) != HAL_OK)
-	{
+	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t*) pData)
+			!= HAL_OK) {
 		/* Caso de errado, chama a função de erro */
 		Error_Handler();
 	}
 }
 
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  ID: Identificador da mensagem
+ * @param  DATA: Buffer de dados da mensagem
+ * @retval ***NONE***
+ */
+void CAN_TxData_SIGNED(uint16_t Identifier, uint64_t data) {
+	uint64_t *pData = &data;
+	uint32_t Size_data = 0;
+
+	for (int i = 0; i < 8; i++)
+		if (data >> 8 * i == 0) {
+			Size_data = i << 16U;
+			break;
+		}
+
+	/* Armazena o identificador da mensagem no struct de informação (TxHeader) */
+	TxHeader.Identifier = Identifier;
+
+	TxHeader.DataLength = Size_data;
+
+	/* Envia os dados recebidos na chamada (data) pela CAN, de acordo com as informações de TxHeader */
+	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t*) pData)
+			!= HAL_OK) {
+		/* Caso de errado, chama a função de erro */
+		Error_Handler();
+	}
+}
+
+/**
+ * @brief  Envio de mensagem pelo barramento CAN
+ * @param  ID: Identificador da mensagem
+ * @param  DATA: Buffer de dados da mensagem
+ * @retval ***NONE***
+ */
+void CAN_TxData_FLOAT(uint16_t Identifier, float data) {
+	uint64_t *pData = &data;
+	uint32_t Size_data = 0;
+
+	for (int i = 0; i < 8; i++)
+		if (data >> 8 * i == 0) {
+			Size_data = i << 16U;
+			break;
+		}
+
+	/* Armazena o identificador da mensagem no struct de informação (TxHeader) */
+	TxHeader.Identifier = Identifier;
+
+	TxHeader.DataLength = Size_data;
+
+	/* Envia os dados recebidos na chamada (data) pela CAN, de acordo com as informações de TxHeader */
+	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t*) pData)
+			!= HAL_OK) {
+		/* Caso de errado, chama a função de erro */
+		Error_Handler();
+	}
+}
 /* USER CODE END PF */

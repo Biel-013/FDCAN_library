@@ -14,10 +14,17 @@
 #define CAN_IDS_NUMBER 400
 
 /* USADO PARA REGISTRAR UM BUFFER DA CAN */
+typedef enum
+{
+	CAN_UINT, CAN_INT, CAN_FLOAT, CAN_DOUBLE
+} Data_type_t;
+
 typedef struct
 {
 	uint8_t *Data_buf[CAN_IDS_NUMBER];
 	uint8_t Size_buf[CAN_IDS_NUMBER];
+	Data_type_t Type_buf[CAN_IDS_NUMBER];
+
 } CAN_Buffer_t;
 
 /**
@@ -63,7 +70,7 @@ void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA);
  * @param  data: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void CAN_TxData(uint16_t Identifier, uint8_t *data, uint8_t Size);
+void CAN_TxData(uint16_t Identifier, uint64_t data);
 
 /**
  * @brief  Envio de mensagem pelo barramento CAN
@@ -106,20 +113,6 @@ uint32_t CAN_RxData_UINT32(uint16_t Identifier);
  * @retval Dados armazenados em formato "int 8 bits".
  */
 int32_t CAN_RxData_INT32(uint16_t Identifier);
-
-/**
- * @brief  Envio de mensagem pelo barramento CAN
- * @param  Identifier: Identificador da mensagem
- * @retval Dados armazenados em formato "unsigned int 8 bits".
- */
-unsigned char CAN_RxData_UCHAR(uint16_t Identifier);
-
-/**
- * @brief  Envio de mensagem pelo barramento CAN
- * @param  Identifier: Identificador da mensagem
- * @retval Dados armazenados em formato "int 8 bits".
- */
-char CAN_RxData_CHAR(uint16_t Identifier);
 
 /**
  * @brief  Envio de mensagem pelo barramento CAN
