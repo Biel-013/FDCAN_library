@@ -59,7 +59,7 @@ static void MX_FDCAN1_Init(void);
 // FDCAN1 Defines
 FDCAN_TxHeaderTypeDef TxHeader1;
 FDCAN_RxHeaderTypeDef RxHeader1;
-uint64_t TxData1 = 0;
+int64_t TxData1 = 0;
 uint8_t RxData1[8];
 
 float var1 = -27456;
@@ -119,14 +119,14 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 	CAN_Init();
 
-	TxData1 = var1;
+	TxData1 = -2562;
 
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		CAN_TxData(100, TxData1);
+		CAN_Send(100, TxData1);
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */

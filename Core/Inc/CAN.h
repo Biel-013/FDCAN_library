@@ -16,7 +16,7 @@
 /* USADO PARA REGISTRAR UM BUFFER DA CAN */
 typedef enum
 {
-	CAN_UINT, CAN_INT, CAN_FLOAT, CAN_DOUBLE
+	CAN_POSITIVE, CAN_NEGATIVE, CAN_FLOAT, CAN_DOUBLE
 } Data_type_t;
 
 typedef struct
@@ -64,13 +64,17 @@ void CAN_Init(void);
  */
 void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA);
 
+void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+
+void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  Identifier: Identificador da mensagem
  * @param  data: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void CAN_TxData(uint16_t Identifier, uint64_t data);
+void CAN_TxData(uint16_t Identifier, uint64_t Data);
 
 /**
  * @brief  Envio de mensagem pelo barramento CAN

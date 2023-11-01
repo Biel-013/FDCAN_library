@@ -2,5 +2,8 @@
 ../Core/Src/CAN.c:85:6:CAN_Configure_Init	8	static
 ../Core/Src/CAN.c:128:6:CAN_stream_Init	16	static
 ../Core/Src/CAN.c:143:6:CAN_Init	8	static
-../Core/Src/CAN.c:179:6:canMessageReceived	32	static
-../Core/Src/CAN.c:212:6:CAN_TxData	56	static
+../Core/Src/CAN.c:179:6:canMessageReceived	24	static
+../Core/Src/CAN.c:206:6:CAN_Storage_POSITIVE	56	static
+../Core/Src/CAN.c:227:6:CAN_Storage_NEGATIVE	56	static
+../Core/Src/CAN.c:253:6:CAN_TxData	56	static
+../Core/Src/CAN.c:282:6:CAN_Send	40	static

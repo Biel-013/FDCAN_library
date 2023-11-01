@@ -185,36 +185,77 @@ void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA) {
 	/* Variavel para armazenamento do identificador */
 	uint16_t IDENTIFIER = hRxFDCAN->Identifier;
 
+	uint8_t TYPE_DATA = DATA[0] & 0x03;
+
 	/* Caso o indentificador não faça parte dos ID's utilizados a função quebra */
 	if (IDENTIFIER > CAN_IDS_NUMBER)
 		return;
 
+	switch (TYPE_DATA) {
+	case 0x00:
+		CAN_Storage_POSITIVE(IDENTIFIER, SIZE_DATA, DATA);
+		break;
+	case 0x01:
+		CAN_Storage_NEGATIVE(IDENTIFIER, SIZE_DATA, DATA);
+		break;
+	default:
+		break;
+	}
+}
+
+void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
+	uint64_t value = 0;
+
 	/* Armazenando o tamanho da variável no buffer da CAN */
-	CAN_stream.Size_buf[IDENTIFIER] = SIZE_DATA;
+	CAN_stream.Size_buf[Identifier] = Size;
+
+	CAN_stream.Type_buf[Identifier] = CAN_POSITIVE;
 
 	/* Libera a memória para que não ocorra Hard Fault */
-	free(CAN_stream.Data_buf[IDENTIFIER]);
+	free(CAN_stream.Data_buf[Identifier]);
 
 	/* Aloca o espaço necessário para armazenamento do dado*/
-	CAN_stream.Data_buf[IDENTIFIER] = malloc(SIZE_DATA * sizeof(uint8_t));
+	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
 
-	/* Armazena o valor do dado na memória alocada*/
-	for (int i = 0; i < SIZE_DATA; i++)
-		CAN_stream.Data_buf[IDENTIFIER][i] = DATA[i];
+	for (int i = 0; i < Size; i++)
+		value += Data[i] << 8 * i;
+
+	/* Armazena o valor na memória alocada*/
+	*CAN_stream.Data_buf[Identifier] = value >> 2U;
 }
 
+void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
+	uint64_t value = 0;
+
+	/* Armazenando o tamanho da variável no buffer da CAN */
+	CAN_stream.Size_buf[Identifier] = Size;
+
+	CAN_stream.Type_buf[Identifier] = CAN_NEGATIVE;
+
+	/* Libera a memória para que não ocorra Hard Fault */
+	free(CAN_stream.Data_buf[Identifier]);
+
+	/* Aloca o espaço necessário para armazenamento do dado*/
+	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
+
+	for (int i = 0; i < Size; i++)
+		value += Data[i] << 8 * i;
+
+	/* Armazena o valor na memória alocada*/
+	*CAN_stream.Data_buf[Identifier] = value >> 2;
+}
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  ID: Identificador da mensagem
  * @param  DATA: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void CAN_TxData(uint16_t Identifier, int64_t data) {
-	uint64_t *pData = &data;
+void CAN_TxData(uint16_t Identifier, uint64_t Data) {
+	uint64_t *pData = &Data;
 	uint32_t Size_data = 0;
 
 	for (int i = 0; i < 8; i++)
-		if (data >> 8 * i == 0) {
+		if (Data >> 8 * i == 0) {
 			Size_data = i << 16U;
 			break;
 		}
@@ -238,55 +279,15 @@ void CAN_TxData(uint16_t Identifier, int64_t data) {
  * @param  DATA: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void CAN_TxData_SIGNED(uint16_t Identifier, uint64_t data) {
-	uint64_t *pData = &data;
-	uint32_t Size_data = 0;
+void CAN_Send(uint16_t Identifier, int64_t Data) {
 
-	for (int i = 0; i < 8; i++)
-		if (data >> 8 * i == 0) {
-			Size_data = i << 16U;
-			break;
-		}
+	if (Data > 0)
 
-	/* Armazena o identificador da mensagem no struct de informação (TxHeader) */
-	TxHeader.Identifier = Identifier;
+		Data = (Data << 2) | 0x00;
+	else
+		Data = ((-Data) << 2) | 0x01;
 
-	TxHeader.DataLength = Size_data;
-
-	/* Envia os dados recebidos na chamada (data) pela CAN, de acordo com as informações de TxHeader */
-	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t*) pData)
-			!= HAL_OK) {
-		/* Caso de errado, chama a função de erro */
-		Error_Handler();
-	}
+	CAN_TxData(Identifier, Data);
 }
 
-/**
- * @brief  Envio de mensagem pelo barramento CAN
- * @param  ID: Identificador da mensagem
- * @param  DATA: Buffer de dados da mensagem
- * @retval ***NONE***
- */
-void CAN_TxData_FLOAT(uint16_t Identifier, float data) {
-	uint64_t *pData = &data;
-	uint32_t Size_data = 0;
-
-	for (int i = 0; i < 8; i++)
-		if (data >> 8 * i == 0) {
-			Size_data = i << 16U;
-			break;
-		}
-
-	/* Armazena o identificador da mensagem no struct de informação (TxHeader) */
-	TxHeader.Identifier = Identifier;
-
-	TxHeader.DataLength = Size_data;
-
-	/* Envia os dados recebidos na chamada (data) pela CAN, de acordo com as informações de TxHeader */
-	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t*) pData)
-			!= HAL_OK) {
-		/* Caso de errado, chama a função de erro */
-		Error_Handler();
-	}
-}
 /* USER CODE END PF */
