@@ -15,6 +15,7 @@
 
 #include "CAN.h"
 #include <stdlib.h>
+#include <math.h>
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
@@ -288,6 +289,24 @@ void CAN_Send(uint16_t Identifier, int64_t Data) {
 		Data = ((-Data) << 2) | 0x01;
 
 	CAN_TxData(Identifier, Data);
+}
+
+void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision){
+	int64_t Valor = Data * pow(10, Precision);
+	
+	if (Data > 0)
+		Valor = (Valor << 12) | 0x000 | (Precision << 2) | 0x02;
+	else
+		Valor = ((-Valor) << 12) | 0x100 | (Precision << 2) | 0x02;
+}
+
+void CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision){
+	int64_t Valor = Data * pow(10, Precision);
+	
+	if (Data > 0)
+		Valor = (Valor << 12) | 0x000 | (Precision << 2) | 0x03;
+	else
+		Valor = ((-Valor) << 12) | 0x800 | (Precision << 2) | 0x03;
 }
 
 /* USER CODE END PF */

@@ -76,6 +76,10 @@ void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
  */
 void CAN_TxData(uint16_t Identifier, uint64_t Data);
 
+void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision);
+
+void CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision);
+
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  Identifier: Identificador da mensagem
