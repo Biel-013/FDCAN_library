@@ -2,6 +2,8 @@
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
   "cmake.configureOnOpen": true,
   "files.associations": {
-    "can.h": "c"
+    "can.h": "c",
+    "main.h": "c",
+    "stm32h7xx_hal.h": "c"
   }
 }

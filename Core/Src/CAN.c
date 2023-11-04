@@ -19,12 +19,15 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TIME_TO_BREAK 10
 /* USER CODE END PD */
 
 /* External variables --------------------------------------------------------*/
 /* USER CODE BEGIN EV */
 
 extern FDCAN_HandleTypeDef hfdcan1; /* Variável externa de configuração da CAN */
+
+#define hFDCAN hfdcan1; /* Handler de configuração da CAN */
 
 /* USER CODE END EV */
 
@@ -50,6 +53,9 @@ FDCAN_RxHeaderTypeDef RxHeader; /*Struct de armazenamento temporario de
 uint8_t RxData[8]; /*Vetor para armazenamento temporario de dados recebidos
  pela CAN*/
 
+uint64_t last_time = 0;
+uint64_t buffer_time[32] = {0};
+uint8_t it = 0;
 /* USER CODE END PV */
 
 /* Private functions ------------------------------------------------------------*/
@@ -61,15 +67,22 @@ uint8_t RxData[8]; /*Vetor para armazenamento temporario de dados recebidos
  * @param  RxFifo0ITs: FIFO de interrupção utilizado
  * @retval ***NONE***
  */
+
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
 	/* Pisca o  LED 2 caso tenha algo para receber pela CAN */
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+
+	buffer_time[it] = HAL_GetTick() - last_time;
+	last_time = HAL_GetTick();
+	it++;
+	if(it == 32)
+		it = 0;
 
 	/* Pega as informações e dados da CAN, e armazena respectivamente em RxHeader e RxData */
 	HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0, &RxHeader, RxData);
 
 	/* Chama a função de tratamento de dados */
-	canMessageReceived(&RxHeader, RxData);
+	CAN_Stream_ReceiveCallback(&RxHeader, RxData);
 
 	/* Ativa novamente a notificação para caso haja algo a receber */
 	if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
@@ -110,7 +123,7 @@ void CAN_Configure_Init() {
 	hfdcan1.Init.RxBufferSize = FDCAN_DATA_BYTES_8;
 	hfdcan1.Init.TxEventsNbr = 0;
 	hfdcan1.Init.TxBuffersNbr = 0;
-	hfdcan1.Init.TxFifoQueueElmtsNbr = 1;
+	hfdcan1.Init.TxFifoQueueElmtsNbr = 32;
 	hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
 	hfdcan1.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
 
@@ -126,7 +139,7 @@ void CAN_Configure_Init() {
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_stream_Init(void) {
+void CAN_Clean_Buffers(void) {
 	/* Zera cada posição do vetor de dados - Redundância */
 	for (uint16_t i = 0; i < CAN_IDS_NUMBER; i++) {
 		free(CAN_stream.Data_buf[i]);
@@ -143,9 +156,10 @@ void CAN_stream_Init(void) {
  */
 void CAN_Init() {
 	/* Chama a função de configuração dos parâmetros da CAN */
-	//	CAN_Configure_Init();
+		CAN_Configure_Init();
+
 	/* Chama a função de limpeza do vetor de armazenamento de dados */
-	CAN_stream_Init();
+	CAN_Clean_Buffers();
 
 	/* Começa a comunicação via CAN */
 	if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
@@ -177,7 +191,7 @@ void CAN_Init() {
  * @param  DATA: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA) {
+void CAN_Stream_ReceiveCallback(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA) {
 	/* Caso o ID passe do maior valor, a função quebra */
 
 	/* Variavel para armazenamento do tamanho de dados */
@@ -316,6 +330,7 @@ void CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
  * @retval ***NONE***
  */
 void CAN_TxData(uint16_t Identifier, uint64_t Data) {
+	uint64_t Time = HAL_GetTick();
 	uint64_t *pData = &Data;
 	uint32_t Size_data = 0;
 
@@ -329,6 +344,11 @@ void CAN_TxData(uint16_t Identifier, uint64_t Data) {
 	TxHeader.Identifier = Identifier;
 
 	TxHeader.DataLength = Size_data;
+
+
+	while (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 0)
+		if(HAL_GetTick() - Time > TIME_TO_BREAK)
+			return;
 
 	/* Envia os dados recebidos na chamada (data) pela CAN, de acordo com as informações de TxHeader */
 	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t*) pData)

@@ -43,7 +43,7 @@
 FDCAN_HandleTypeDef hfdcan1;
 
 /* USER CODE BEGIN PV */
-
+extern uint64_t buffer_time[32];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,7 +65,6 @@ uint8_t Precisao_FLOAT = 3;
 double DOUBLE_Tx = 124.4134515;
 double DOUBLE_Rx = 0;
 uint8_t Precisao_DOUBLE = 7;
-
 /* USER CODE END 0 */
 
 /**
@@ -105,15 +104,11 @@ int main(void) {
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 		CAN_Send(100, INTEIRO_Tx);
-		HAL_Delay(10);
 		CAN_Send_Float(101, FLOAT_Tx, Precisao_FLOAT);
-		HAL_Delay(10);
 		CAN_Send_Double(102, DOUBLE_Tx, Precisao_DOUBLE);
-		HAL_Delay(10);
 		INTEIRO_Rx = CAN_Get_value(100);
 		FLOAT_Rx = CAN_Get_value_FLOAT(101);
 		DOUBLE_Rx = CAN_Get_value_DOUBLE(102);
-
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
@@ -144,19 +139,18 @@ void SystemClock_Config(void) {
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-	RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
-	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-	RCC_OscInitStruct.PLL.PLLM = 4;
-	RCC_OscInitStruct.PLL.PLLN = 12;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 2;
+	RCC_OscInitStruct.PLL.PLLN = 16;
 	RCC_OscInitStruct.PLL.PLLP = 2;
 	RCC_OscInitStruct.PLL.PLLQ = 4;
 	RCC_OscInitStruct.PLL.PLLR = 2;
 	RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
 	RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-	RCC_OscInitStruct.PLL.PLLFRACN = 4096;
+	RCC_OscInitStruct.PLL.PLLFRACN = 0;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
 		Error_Handler();
 	}
@@ -195,7 +189,7 @@ static void MX_FDCAN1_Init(void) {
 	/* USER CODE END FDCAN1_Init 1 */
 	hfdcan1.Instance = FDCAN1;
 	hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_NO_BRS;
-	hfdcan1.Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
+	hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
 	hfdcan1.Init.AutoRetransmission = DISABLE;
 	hfdcan1.Init.TransmitPause = DISABLE;
 	hfdcan1.Init.ProtocolException = DISABLE;
@@ -218,7 +212,7 @@ static void MX_FDCAN1_Init(void) {
 	hfdcan1.Init.RxBufferSize = FDCAN_DATA_BYTES_8;
 	hfdcan1.Init.TxEventsNbr = 0;
 	hfdcan1.Init.TxBuffersNbr = 0;
-	hfdcan1.Init.TxFifoQueueElmtsNbr = 1;
+	hfdcan1.Init.TxFifoQueueElmtsNbr = 32;
 	hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
 	hfdcan1.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
 	if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK) {
@@ -279,7 +273,7 @@ void Error_Handler(void) {
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while (1) {
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
 	}
 	/* USER CODE END Error_Handler_Debug */
 }

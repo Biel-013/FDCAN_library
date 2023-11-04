@@ -47,7 +47,7 @@ void CAN_Configure_Init(void);
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void Clean_CAN_vector(void);
+void CAN_Clean_Buffers(void);
 
 /**
  * @brief  Inicialização da comunicação via CAN
@@ -62,7 +62,7 @@ void CAN_Init(void);
  * @param  DATA: Buffer de dados da mensagem
  * @retval ***NONE***
  */
-void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA);
+void CAN_Stream_ReceiveCallback(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA);
 
 void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
 
@@ -77,6 +77,7 @@ int64_t CAN_Get_value(uint16_t Identifier);
 float CAN_Get_value_FLOAT(uint16_t Identifier);
 
 double CAN_Get_value_DOUBLE(uint16_t Identifier);
+
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  Identifier: Identificador da mensagem
@@ -90,12 +91,5 @@ void CAN_Send(uint16_t Identifier, int64_t Data);
 void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision);
 
 void CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision);
-
-/**
- * @brief  Função para aviso de erro
- * @param  ***NONE***
- * @retval ***NONE***
- */
-void Error_CAN(void);
 
 #endif /* CAN_LOG_H_ */
