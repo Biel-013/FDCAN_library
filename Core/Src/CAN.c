@@ -199,6 +199,12 @@ void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA) {
 	case 0x01:
 		CAN_Storage_NEGATIVE(IDENTIFIER, SIZE_DATA, DATA);
 		break;
+	case 0x02:
+		CAN_Storage_FLOAT(IDENTIFIER, SIZE_DATA, DATA);
+		break;
+	case 0x03:
+		CAN_Storage_DOUBLE(IDENTIFIER, SIZE_DATA, DATA);
+		break;
 	default:
 		break;
 	}
@@ -206,7 +212,7 @@ void canMessageReceived(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA) {
 
 void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
 	uint64_t value = 0;
-
+	uint8_t *pValue = (uint8_t*) &value;
 	/* Armazenando o tamanho da variável no buffer da CAN */
 	CAN_stream.Size_buf[Identifier] = Size;
 
@@ -219,14 +225,18 @@ void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
 	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
 
 	for (int i = 0; i < Size; i++)
-		value += Data[i] << 8 * i;
+		pValue[i] = Data[i];
+
+	value = value >> 2U;
 
 	/* Armazena o valor na memória alocada*/
-	*CAN_stream.Data_buf[Identifier] = value >> 2U;
+	for (int i = 0; i < Size; i++)
+		CAN_stream.Data_buf[Identifier][i] = pValue[i];
 }
 
 void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
 	uint64_t value = 0;
+	uint8_t *pValue = (uint8_t*) &value;
 
 	/* Armazenando o tamanho da variável no buffer da CAN */
 	CAN_stream.Size_buf[Identifier] = Size;
@@ -240,11 +250,65 @@ void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
 	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
 
 	for (int i = 0; i < Size; i++)
-		value += Data[i] << 8 * i;
+		pValue[i] = Data[i];
+
+	value = value >> 2U;
 
 	/* Armazena o valor na memória alocada*/
-	*CAN_stream.Data_buf[Identifier] = value >> 2;
+	for (int i = 0; i < Size; i++)
+		CAN_stream.Data_buf[Identifier][i] = pValue[i];
 }
+
+void CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
+	uint64_t value = 0;
+	uint8_t *pValue = (uint8_t*) &value;
+
+	/* Armazenando o tamanho da variável no buffer da CAN */
+	CAN_stream.Size_buf[Identifier] = Size;
+
+	CAN_stream.Type_buf[Identifier] = CAN_FLOAT;
+
+	/* Libera a memória para que não ocorra Hard Fault */
+	free(CAN_stream.Data_buf[Identifier]);
+
+	/* Aloca o espaço necessário para armazenamento do dado*/
+	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
+
+	for (int i = 0; i < Size; i++)
+		pValue[i] = Data[i];
+
+	value = value >> 2U;
+
+	/* Armazena o valor na memória alocada*/
+	for (int i = 0; i < Size; i++)
+		CAN_stream.Data_buf[Identifier][i] = pValue[i];
+}
+
+void CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Data) {
+	uint64_t value = 0;
+	uint8_t *pValue = (uint8_t*) &value;
+
+	/* Armazenando o tamanho da variável no buffer da CAN */
+	CAN_stream.Size_buf[Identifier] = Size;
+
+	CAN_stream.Type_buf[Identifier] = CAN_DOUBLE;
+
+	/* Libera a memória para que não ocorra Hard Fault */
+	free(CAN_stream.Data_buf[Identifier]);
+
+	/* Aloca o espaço necessário para armazenamento do dado*/
+	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
+
+	for (uint64_t i = 0; i < Size; i++)
+		pValue[i] = Data[i];
+
+	value = value >> 2U;
+
+	/* Armazena o valor na memória alocada*/
+	for (int i = 0; i < Size; i++)
+		CAN_stream.Data_buf[Identifier][i] = pValue[i];
+}
+
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  ID: Identificador da mensagem
@@ -274,6 +338,75 @@ void CAN_TxData(uint16_t Identifier, uint64_t Data) {
 	}
 }
 
+int64_t CAN_Get_value(uint16_t Identifier) {
+	int64_t VALUE = 0;
+	uint8_t *pValue = (uint8_t*) &VALUE;
+
+	switch (CAN_stream.Type_buf[Identifier]) {
+	case CAN_POSITIVE:
+		for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
+			pValue[i] = CAN_stream.Data_buf[Identifier][i];
+		break;
+	case CAN_NEGATIVE:
+		for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
+			pValue[i] = CAN_stream.Data_buf[Identifier][i];
+		VALUE = -VALUE;
+		break;
+	default:
+		break;
+	}
+
+	return VALUE;
+}
+
+float CAN_Get_value_FLOAT(uint16_t Identifier) {
+	if (CAN_stream.Type_buf[Identifier] != CAN_FLOAT)
+		return 0;
+	uint64_t DATA_STORAGE = 0;
+	uint8_t PRECISION = 0;
+	uint8_t SIGNAL = 0;
+	float VALUE = 0;
+	uint8_t *pData_Storage = (uint8_t*) &DATA_STORAGE;
+
+	for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
+		pData_Storage[i] = CAN_stream.Data_buf[Identifier][i];
+
+	PRECISION = DATA_STORAGE & 0x3F;
+
+	SIGNAL = (DATA_STORAGE & 0x40) >> 6;
+
+	VALUE = (DATA_STORAGE >> 7) * pow(10, -PRECISION);
+
+	if (SIGNAL == 1)
+		VALUE = -VALUE;
+
+	return VALUE;
+}
+
+double CAN_Get_value_DOUBLE(uint16_t Identifier) {
+	if (CAN_stream.Type_buf[Identifier] != CAN_DOUBLE)
+		return 0;
+	uint64_t DATA_STORAGE = 0;
+	uint8_t PRECISION = 0;
+	uint8_t SIGNAL = 0;
+	float VALUE = 0;
+	uint8_t *pData_Storage = (uint8_t*) &DATA_STORAGE;
+
+	for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
+		pData_Storage[i] = CAN_stream.Data_buf[Identifier][i];
+
+	PRECISION = DATA_STORAGE & 0x1FF;
+
+	SIGNAL = (DATA_STORAGE & 0x200) >> 9;
+
+	VALUE = (DATA_STORAGE >> 10) * pow(10, -PRECISION);
+
+	if (SIGNAL == 1)
+		VALUE = -VALUE;
+
+	return VALUE;
+}
+
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  ID: Identificador da mensagem
@@ -291,22 +424,26 @@ void CAN_Send(uint16_t Identifier, int64_t Data) {
 	CAN_TxData(Identifier, Data);
 }
 
-void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision){
+void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision) {
 	int64_t Valor = Data * pow(10, Precision);
-	
+
 	if (Data > 0)
-		Valor = (Valor << 12) | 0x000 | (Precision << 2) | 0x02;
+		Valor = (Valor << 9) | 0x000 | (Precision << 2) | 0x02;
 	else
-		Valor = ((-Valor) << 12) | 0x100 | (Precision << 2) | 0x02;
+		Valor = ((-Valor) << 9) | 0x100 | (Precision << 2) | 0x02;
+
+	CAN_TxData(Identifier, Valor);
 }
 
-void CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision){
+void CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision) {
 	int64_t Valor = Data * pow(10, Precision);
-	
+
 	if (Data > 0)
 		Valor = (Valor << 12) | 0x000 | (Precision << 2) | 0x03;
 	else
 		Valor = ((-Valor) << 12) | 0x800 | (Precision << 2) | 0x03;
+
+	CAN_TxData(Identifier, Valor);
 }
 
 /* USER CODE END PF */

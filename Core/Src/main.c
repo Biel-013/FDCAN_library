@@ -57,34 +57,14 @@ static void MX_FDCAN1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 // FDCAN1 Defines
-FDCAN_TxHeaderTypeDef TxHeader1;
-FDCAN_RxHeaderTypeDef RxHeader1;
-int64_t TxData1 = 0;
-uint8_t RxData1[8];
-
-float var1 = -27456;
-uint16_t var2 = 16276;
-int16_t resp1 = 0;
-int16_t resp2 = 0;
-
-//void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
-//	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-//
-//	if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
-//		/* Retreive Rx messages from RX FIFO0 */
-//		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1)
-//				!= HAL_OK) {
-//			/* Reception Error */
-//			Error_Handler();
-//		}
-//
-//		if (HAL_FDCAN_ActivateNotification(hfdcan,
-//		FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
-//			/* Notification Error */
-//			Error_Handler();
-//		}
-//	}
-//}
+int64_t INTEIRO_Tx = 1225;
+int64_t INTEIRO_Rx = 0;
+float FLOAT_Tx = 145.5151;
+float FLOAT_Rx = 0;
+uint8_t Precisao_FLOAT = 3;
+double DOUBLE_Tx = 124.4134515;
+double DOUBLE_Rx = 0;
+uint8_t Precisao_DOUBLE = 7;
 
 /* USER CODE END 0 */
 
@@ -119,18 +99,25 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 	CAN_Init();
 
-	TxData1 = -2562;
-
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		CAN_Send(100, TxData1);
+		CAN_Send(100, INTEIRO_Tx);
+		HAL_Delay(10);
+		CAN_Send_Float(101, FLOAT_Tx, Precisao_FLOAT);
+		HAL_Delay(10);
+		CAN_Send_Double(102, DOUBLE_Tx, Precisao_DOUBLE);
+		HAL_Delay(10);
+		INTEIRO_Rx = CAN_Get_value(100);
+		FLOAT_Rx = CAN_Get_value_FLOAT(101);
+		DOUBLE_Rx = CAN_Get_value_DOUBLE(102);
+
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		HAL_Delay(70);
+		HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_1);
 	}
 	/* USER CODE END 3 */
 }
