@@ -17,19 +17,23 @@
 #include <stdlib.h>
 #include <math.h>
 
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-#define TIME_TO_BREAK 10
-/* USER CODE END PD */
+
 
 /* External variables --------------------------------------------------------*/
 /* USER CODE BEGIN EV */
 
 extern FDCAN_HandleTypeDef hfdcan1; /* Variável externa de configuração da CAN */
 
+/* USER CODE END EV */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
 #define hFDCAN hfdcan1; /* Handler de configuração da CAN */
 
-/* USER CODE END EV */
+#define TIME_TO_BREAK 10 /* Tempo máximo para envio de mensagem na CAN (ms) */
+
+/* USER CODE END PD */
 
 /* External functions ------------------------------------------------------------*/
 /* USER CODE BEGIN EF */
@@ -53,9 +57,6 @@ FDCAN_RxHeaderTypeDef RxHeader; /*Struct de armazenamento temporario de
 uint8_t RxData[8]; /*Vetor para armazenamento temporario de dados recebidos
  pela CAN*/
 
-uint64_t last_time = 0;
-uint64_t buffer_time[32] = {0};
-uint8_t it = 0;
 /* USER CODE END PV */
 
 /* Private functions ------------------------------------------------------------*/
@@ -67,16 +68,9 @@ uint8_t it = 0;
  * @param  RxFifo0ITs: FIFO de interrupção utilizado
  * @retval ***NONE***
  */
-
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+FDCAN_StatusTypedef HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
 	/* Pisca o  LED 2 caso tenha algo para receber pela CAN */
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-
-	buffer_time[it] = HAL_GetTick() - last_time;
-	last_time = HAL_GetTick();
-	it++;
-	if(it == 32)
-		it = 0;
 
 	/* Pega as informações e dados da CAN, e armazena respectivamente em RxHeader e RxData */
 	HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0, &RxHeader, RxData);
@@ -91,6 +85,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 		Error_Handler();
 	}
 }
+
 /**
  * @brief  Configura a CAN, overwrite do .IOC
  * @param  ***NONE***
@@ -154,7 +149,7 @@ void CAN_Clean_Buffers(void) {
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_Init() {
+void CAN_Init(void) {
 	/* Chama a função de configuração dos parâmetros da CAN */
 		CAN_Configure_Init();
 
@@ -435,7 +430,7 @@ double CAN_Get_value_DOUBLE(uint16_t Identifier) {
  */
 void CAN_Send(uint16_t Identifier, int64_t Data) {
 
-	if (Data > 0)
+	if (Data >= 0)
 
 		Data = (Data << 2) | 0x00;
 	else
@@ -447,7 +442,7 @@ void CAN_Send(uint16_t Identifier, int64_t Data) {
 void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision) {
 	int64_t Valor = Data * pow(10, Precision);
 
-	if (Data > 0)
+	if (Data >= 0)
 		Valor = (Valor << 9) | 0x000 | (Precision << 2) | 0x02;
 	else
 		Valor = ((-Valor) << 9) | 0x100 | (Precision << 2) | 0x02;
@@ -458,7 +453,7 @@ void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision) {
 void CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision) {
 	int64_t Valor = Data * pow(10, Precision);
 
-	if (Data > 0)
+	if (Data >= 0)
 		Valor = (Valor << 12) | 0x000 | (Precision << 2) | 0x03;
 	else
 		Valor = ((-Valor) << 12) | 0x800 | (Precision << 2) | 0x03;

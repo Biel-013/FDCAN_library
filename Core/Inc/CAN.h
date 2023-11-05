@@ -16,8 +16,18 @@
 /* USADO PARA REGISTRAR UM BUFFER DA CAN */
 typedef enum
 {
-	CAN_POSITIVE, CAN_NEGATIVE, CAN_FLOAT, CAN_DOUBLE
+	CAN_POSITIVE,
+	CAN_NEGATIVE,
+	CAN_FLOAT,
+	CAN_DOUBLE
 } Data_type_t;
+
+typedef enum
+{
+	FDCAN_OK,
+	FDCAN_ERROR,
+	FDCAN_TIMEOUT
+} FDCAN_StatusTypedef;
 
 typedef struct
 {
@@ -27,69 +37,199 @@ typedef struct
 
 } CAN_Buffer_t;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- CALLBACK DE RECEBIMENTO DA CAN --------------------------------------------------------------------------------*/
+
 /**
  * @brief  Função chamada quando detectado uma mensagem no barramento da CAN
  * @param  hfdcan: Handle da CAN || normalmente "hfdcan1"
- * @param  RxFifo0ITs: FIFO de interrupção utilizado
+ * @param  RxFifo0ITs: FIFO em que foi detectado a mensagem
  * @retval ***NONE***
  */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);
 
-/**
- * @brief  Configura a CAN, overwrite do .IOC
- * @param  ***NONE***
- * @retval ***NONE***
- */
-void CAN_Configure_Init(void);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- TRATAMENTO DE MENSAGENS RECEBIDAS -----------------------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização do vetor de dados da CAN
+ * @brief  Função de tratamento das mensagens recebidas
+ * @param  hRxFDCAN: Handler com as innformações do flame recebido
+ * @param  Buffer: Buffer com os dados e informações da mensagem
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Stream_ReceiveCallback(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *Buffer);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- PARAMETROS DE CONFIGURAÇÃO DA CAN --------------------------------------------------------------*/
+
+/**
+ * @brief  Configura a CAN, overwrite das configurações do .IOC
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Configure_Init(void);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- LIMPEZA DOS BUFFERS DE ARMAZENAMENTO --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização dos buffers de armazenamento das mensagens da CAN
  * @param  ***NONE***
  * @retval ***NONE***
  */
 void CAN_Clean_Buffers(void);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
 
 /**
  * @brief  Inicialização da comunicação via CAN
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_Init(void);
+FDCAN_StatusTypedef CAN_Init(void);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
 
 /**
- * @brief  Função de tratamento das mensagens recebidas
- * @param  ID: Identificador da mensagem
- * @param  DATA: Buffer de dados da mensagem
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_Stream_ReceiveCallback(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *DATA);
-
-void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
-
-void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
-
-void CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Data);
-
-void CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
-
 int64_t CAN_Get_value(uint16_t Identifier);
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval ***NONE***
+ */
 float CAN_Get_value_FLOAT(uint16_t Identifier);
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval ***NONE***
+ */
 double CAN_Get_value_DOUBLE(uint16_t Identifier);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
 
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  Identifier: Identificador da mensagem
  * @param  data: Buffer de dados da mensagem
- * @retval ***NONE***
+ * @retval Status de execução da função
  */
-void CAN_TxData(uint16_t Identifier, uint64_t Data);
+FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Data);
 
-void CAN_Send(uint16_t Identifier, int64_t Data);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision);
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
 
-void CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision);
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Send(uint16_t Identifier, int64_t Data);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+
+/**
+ * @brief  Inicialização da comunicação via CAN
+ * @param  ***NONE***
+ * @retval Status de execução da função
+ */
+FDCAN_StatusTypedef CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision);
 
 #endif /* CAN_LOG_H_ */
