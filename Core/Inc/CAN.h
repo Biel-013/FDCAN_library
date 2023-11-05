@@ -16,10 +16,11 @@
 /* USADO PARA REGISTRAR UM BUFFER DA CAN */
 typedef enum
 {
-	CAN_POSITIVE,
-	CAN_NEGATIVE,
-	CAN_FLOAT,
-	CAN_DOUBLE
+	FDCAN_POSITIVE,
+	FDCAN_NEGATIVE,
+	FDCAN_FLOAT,
+	FDCAN_DOUBLE,
+	FDCAN_FREE
 } Data_type_t;
 
 typedef enum
@@ -90,96 +91,104 @@ void CAN_Clean_Buffers(void);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- INÍCIO DA COMUNICAÇÃO VIA FDCAN --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
+ * @brief  Inicialização da comunicação via FDCAN
  * @param  ***NONE***
- * @retval ***NONE***
+ * @retval Status de execução da função
  */
 FDCAN_StatusTypedef CAN_Init(void);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- ARMAZENAMENTO DE VALORES INTEIROS POSITIVOS --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
- * @param  ***NONE***
+ * @brief  Função para armazenamento de valores inteiros positivos, assim como informação de tipo e tamanho
+ * @param  Identifier: Identificador da mensagem
+ * @param  Size: Espaço necessário para armazenamento da mensagem
+ * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+FDCAN_StatusTypedef CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- ARMAZENAMENTO DE VALORES INTEIROS NEGATIVOS --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
- * @param  ***NONE***
+ * @brief  Função para armazenamento de valores inteiros negativos, assim como informação de tipo e tamanho
+ * @param  Identifier: Identificador da mensagem
+ * @param  Size: Espaço necessário para armazenamento da mensagem
+ * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+FDCAN_StatusTypedef CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- ARMAZENAMENTO DE VALORES FLOATS --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
- * @param  ***NONE***
+ * @brief  Função para armazenamento de valores floats, assim como informação de tipo e tamanho
+ * @param  Identifier: Identificador da mensagem
+ * @param  Size: Espaço necessário para armazenamento da mensagem
+ * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+FDCAN_StatusTypedef CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- ARMAZENAMENTO DE VALORES DOUBLES --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
- * @param  ***NONE***
+ * @brief  Função para armazenamento de valores doubles, assim como informação de tipo e tamanho
+ * @param  Identifier: Identificador da mensagem
+ * @param  Size: Espaço necessário para armazenamento da mensagem
+ * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Data);
+FDCAN_StatusTypedef CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- ACESSO AOS VALORES INTEIROS ARMAZENADOS --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
- * @param  ***NONE***
- * @retval ***NONE***
+ * @brief  Função para acesso aos valores inteiros armazenados na memória
+ * @param  Identifier: Identificador da mensagem
+ * @retval Valor inteiro armazenado, caso o valor não seja um inteiro retorna "FDCAN_ERRO"
  */
 int64_t CAN_Get_value(uint16_t Identifier);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- ACESSO AOS VALORES FLOATS ARMAZENADOS --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
+ * @brief  Função para acesso aos valores floats armazenados na memória
  * @param  ***NONE***
- * @retval ***NONE***
+ * @retval Valor float armazeenado, caso o valor não seja um float retorna "FDCAN_ERRO"
  */
 float CAN_Get_value_FLOAT(uint16_t Identifier);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- IDENTIDICADOR DO DISPOSITIVO FINAL --------------------------------------------------------------*/
+/*---- ACESSO AOS VALORES DOUBLES ARMAZENADOS --------------------------------------------------------------*/
 
 /**
- * @brief  Inicialização da comunicação via CAN
+ * @brief  Função para acesso aos valores doubles armazenados na memória
  * @param  ***NONE***
- * @retval ***NONE***
+ * @retval Valor double armazenado, caso o valor não seja um double retorna "FDCAN_ERRO"
  */
 double CAN_Get_value_DOUBLE(uint16_t Identifier);
 
@@ -191,7 +200,7 @@ double CAN_Get_value_DOUBLE(uint16_t Identifier);
 /**
  * @brief  Envio de mensagem pelo barramento CAN
  * @param  Identifier: Identificador da mensagem
- * @param  data: Buffer de dados da mensagem
+ * @param  Data: Buffer de dados da mensagem
  * @retval Status de execução da função
  */
 FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Data);
