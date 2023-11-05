@@ -4,6 +4,7 @@
   "files.associations": {
     "can.h": "c",
     "main.h": "c",
-    "stm32h7xx_hal.h": "c"
+    "stm32h7xx_hal.h": "c",
+    "type_traits": "c"
   }
 }
