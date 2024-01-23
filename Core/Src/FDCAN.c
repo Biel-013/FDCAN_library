@@ -13,8 +13,9 @@
  *      FDCAN normal mode VÍDEO: https://www.youtube.com/watch?v=sY1ie-CnOR0&t=7s
  */
 
-#include "CAN.h"
+#include <FDCAN.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 /* External variables --------------------------------------------------------*/
@@ -30,6 +31,12 @@ extern FDCAN_HandleTypeDef hfdcan1; /* Variável externa de configuração da CA
 FDCAN_HandleTypeDef *hFDCAN = &hfdcan1; /* Handler de configuração da CAN */
 
 #define TIME_TO_BREAK 10 /* Tempo máximo para envio de mensagem na CAN (ms) */
+
+#define INT_SIZE 4
+
+#define FLOAT_SIZE 5
+
+#define DOUBLE_SIZE 8
 
 /* USER CODE END PD */
 
@@ -62,7 +69,6 @@ uint8_t RxData[8]; /*Vetor para armazenamento temporario de dados recebidos
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /*---- CALLBACK DE RECEBIMENTO DA CAN --------------------------------------------------------------------------------*/
 
 /**
@@ -71,21 +77,19 @@ uint8_t RxData[8]; /*Vetor para armazenamento temporario de dados recebidos
  * @param  RxFifo0ITs: FIFO em que foi detectado a mensagem
  * @retval ***NONE***
  */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-{
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
 	/* Pisca o  LED 2 caso tenha algo para receber pela CAN */
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_4);
 
 	/* Pega as informações e dados da CAN, e armazena respectivamente em RxHeader e RxData */
-	HAL_FDCAN_GetRxMessage(&hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData);
+	HAL_FDCAN_GetRxMessage(hFDCAN, FDCAN_RX_FIFO0, &RxHeader, RxData);
 
 	/* Chama a função de tratamento de dados */
 	CAN_Stream_ReceiveCallback(&RxHeader, RxData);
 
 	/* Ativa novamente a notificação para caso haja algo a receber */
-	if (HAL_FDCAN_ActivateNotification(&hfdcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-									   0) != HAL_OK)
-	{
+	if (HAL_FDCAN_ActivateNotification(hFDCAN, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0)
+			!= HAL_OK) {
 		/* Caso de errado, chama a função de erro */
 		Error_Handler();
 	}
@@ -102,34 +106,45 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
  * @param  Buffer: Buffer com os dados e informações da mensagem
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Stream_ReceiveCallback(FDCAN_RxHeaderTypeDef *hRxFDCAN, uint8_t *Buffer)
-{
+FDCAN_StatusTypedef CAN_Stream_ReceiveCallback(FDCAN_RxHeaderTypeDef *hRxFDCAN,
+		uint8_t *Buffer) {
 	/* Caso o indentificador não faça parte dos ID's utilizados a função quebra */
 	if (hRxFDCAN->Identifier > CAN_IDS_NUMBER)
-		return;
+		/* Caso de errado, retorna erro */
+		return FDCAN_ERROR;
 
-	/* Variavel para armazenamento do tamanho de dados */
+	/* Variavel para armazenamento do tamanho dos dados */
 	uint8_t SIZE_DATA = hRxFDCAN->DataLength >> 16U;
 
-	uint8_t TYPE_DATA = Buffer[0] & 0x03;
+	for (int i = SIZE_DATA; i < 8; i++)
+		CAN_stream.Data_buf[hRxFDCAN->Identifier][i] = 0;
 
-	switch (TYPE_DATA)
-	{
-	case FDCAN_POSITIVE:
-		CAN_Storage_POSITIVE(hRxFDCAN->Identifier, SIZE_DATA, Buffer);
+	if (SIZE_DATA <= INT_SIZE)
+		SIZE_DATA = INT_SIZE;
+
+	/*Switch case para armazenar os dados de forma correta na memória*/
+	switch (SIZE_DATA) {
+	case INT_SIZE:
+		/*Tratamento de valores inteiros positivos*/
+		CAN_Storage_INT(hRxFDCAN->Identifier, Buffer);
 		break;
-	case FDCAN_NEGATIVE:
-		CAN_Storage_NEGATIVE(hRxFDCAN->Identifier, SIZE_DATA, Buffer);
+	case FLOAT_SIZE:
+		/*Tratamento de valores floats*/
+		CAN_Storage_FLOAT(hRxFDCAN->Identifier, Buffer);
 		break;
-	case FDCAN_FLOAT:
-		CAN_Storage_FLOAT(hRxFDCAN->Identifier, SIZE_DATA, Buffer);
-		break;
-	case FDCAN_DOUBLE:
-		CAN_Storage_DOUBLE(hRxFDCAN->Identifier, SIZE_DATA, Buffer);
+	case DOUBLE_SIZE:
+		/*Tratamento de valores doubles*/
+		CAN_Storage_DOUBLE(hRxFDCAN->Identifier, Buffer);
 		break;
 	default:
 		break;
 	}
+
+	for (int i = 0; i < 8; i++)
+		Buffer[i] = 0;
+
+	/* Caso de tudo certo, retorna ok */
+	return FDCAN_OK;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -142,26 +157,29 @@ FDCAN_StatusTypedef CAN_Stream_ReceiveCallback(FDCAN_RxHeaderTypeDef *hRxFDCAN, 
  * @param  ***NONE***
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Configure_Init()
-{
-	/* Configura os parâmetros da CAN - LEITURA DO RELATORIO */
+FDCAN_StatusTypedef CAN_Configure_Init() {
+	/* Configura os parâmetros da FDCAN - LEITURA DO RELATÓRIO */
 	hFDCAN->Instance = FDCAN1;
 	hFDCAN->Init.FrameFormat = FDCAN_FRAME_FD_NO_BRS;
-	hFDCAN->Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
+	hFDCAN->Init.Mode = FDCAN_MODE_NORMAL;
 	hFDCAN->Init.AutoRetransmission = DISABLE;
 	hFDCAN->Init.TransmitPause = DISABLE;
 	hFDCAN->Init.ProtocolException = DISABLE;
 	hFDCAN->Init.NominalPrescaler = 1;
-	hFDCAN->Init.NominalSyncJumpWidth = 7;
-	hFDCAN->Init.NominalTimeSeg1 = 42;
-	hFDCAN->Init.NominalTimeSeg2 = 27;
+	hFDCAN->Init.NominalSyncJumpWidth = 1;
+	hFDCAN->Init.NominalTimeSeg1 = 17;
+	hFDCAN->Init.NominalTimeSeg2 = 1;
 	hFDCAN->Init.DataPrescaler = 2;
-	hFDCAN->Init.DataSyncJumpWidth = 12;
-	hFDCAN->Init.DataTimeSeg1 = 12;
-	hFDCAN->Init.DataTimeSeg2 = 12;
-	hFDCAN->Init.MessageRAMOffset = 0;
+	hFDCAN->Init.DataSyncJumpWidth = 14;
+	hFDCAN->Init.DataTimeSeg1 = 15;
+	hFDCAN->Init.DataTimeSeg2 = 14;
 	hFDCAN->Init.StdFiltersNbr = 0;
 	hFDCAN->Init.ExtFiltersNbr = 0;
+	hFDCAN->Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
+
+	/*Esses parâmentros extras não são compatíveis com STM32G0, por isso se encontram dentro do "#ifdef"*/
+#ifdef CHIP_STM32H7
+	hFDCAN->Init.MessageRAMOffset = 0;
 	hFDCAN->Init.RxFifo0ElmtsNbr = 1;
 	hFDCAN->Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_8;
 	hFDCAN->Init.RxFifo1ElmtsNbr = 0;
@@ -171,8 +189,8 @@ FDCAN_StatusTypedef CAN_Configure_Init()
 	hFDCAN->Init.TxEventsNbr = 0;
 	hFDCAN->Init.TxBuffersNbr = 0;
 	hFDCAN->Init.TxFifoQueueElmtsNbr = 32;
-	hFDCAN->Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
 	hFDCAN->Init.TxElmtSize = FDCAN_DATA_BYTES_8;
+#endif
 
 	/* Inicializa a CAN com os parâmetros definidos */
 	if (HAL_FDCAN_Init(hFDCAN) != HAL_OK)
@@ -193,15 +211,13 @@ FDCAN_StatusTypedef CAN_Configure_Init()
  * @param  ***NONE***
  * @retval ***NONE***
  */
-void CAN_Clean_Buffers(void)
-{
+void CAN_Clean_Buffers(void) {
 	/* Zera cada posição do vetor de dados - Redundância */
-	for (uint16_t i = 0; i < CAN_IDS_NUMBER; i++)
-	{
-		free(CAN_stream.Data_buf[i]);
-		CAN_stream.Data_buf[i] = NULL;
-		*CAN_stream.Data_buf[i] = 0;
-		CAN_stream.Size_buf[i] = 0;
+	for (uint16_t i = 0; i < CAN_IDS_NUMBER; i++) {
+		/*Limpa os lixos de memória que podem existir*/
+		for (uint8_t j = 0; j < 8; j++)
+			CAN_stream.Data_buf[i][j] = 0;
+		/*Garante que não seja possível recuperar valores que não foram alocados na memória*/
 		CAN_stream.Type_buf[i] = FDCAN_FREE;
 	}
 }
@@ -216,8 +232,7 @@ void CAN_Clean_Buffers(void)
  * @param  ***NONE***
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Init(void)
-{
+FDCAN_StatusTypedef CAN_Init(void) {
 	/* Chama a função de configuração dos parâmetros da CAN */
 	if (CAN_Configure_Init() != FDCAN_OK)
 		/* Caso de errado, retorna erro */
@@ -232,20 +247,20 @@ FDCAN_StatusTypedef CAN_Init(void)
 		return FDCAN_ERROR;
 
 	/* Ativa a notificação para caso haja algo a receber */
-	if (HAL_FDCAN_ActivateNotification(hFDCAN, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-									   0) != HAL_OK)
+	if (HAL_FDCAN_ActivateNotification(hFDCAN, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0)
+			!= HAL_OK)
 		/* Caso de errado, retorna erro */
 		return FDCAN_ERROR;
 
 	/* Configura os parametros para envio de mensagem */
-	TxHeader.IdType = FDCAN_STANDARD_ID;			  // TIPO DE IDENTIFICADOR - STANDARD OU EXTENDED
-	TxHeader.TxFrameType = FDCAN_DATA_FRAME;		  // TIPO DE FLAME - DATA OU REMOTE
-	TxHeader.DataLength = FDCAN_DLC_BYTES_8;		  // TAMANHO DOS DADOS - 0 A 64 WORDS - CONVERTIDO PRA 4
-	TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;  // INDICADOR DE ERRO - ATIVO OU PASSIVO
-	TxHeader.BitRateSwitch = FDCAN_BRS_OFF;			  // BIT DE INTERRUPÇÃO - ON OU OFF
-	TxHeader.FDFormat = FDCAN_FD_CAN;				  // TIPO DE CAN - NORMAL OU FDCAN
+	TxHeader.IdType = FDCAN_STANDARD_ID; // TIPO DE IDENTIFICADOR - STANDARD OU EXTENDED
+	TxHeader.TxFrameType = FDCAN_DATA_FRAME; // TIPO DE FLAME - DATA OU REMOTE
+	TxHeader.DataLength = FDCAN_DLC_BYTES_8; // TAMANHO DOS DADOS - 0 A 64 WORDS - DESLOCAMENTO DE 16 BITS <<
+	TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE; // INDICADOR DE ERRO - ATIVO OU PASSIVO
+	TxHeader.BitRateSwitch = FDCAN_BRS_OFF;	// BIT DE INTERRUPÇÃO - ON OU OFF
+	TxHeader.FDFormat = FDCAN_FD_CAN;			// TIPO DE CAN - NORMAL OU FDCAN
 	TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS; // ARMAZENAMENTO DE EVENTOS DE ENVIO - ON OU OFF
-	TxHeader.MessageMarker = 0;						  // MASCARA DA MENSAGEM - 0 A 0xFF
+	TxHeader.MessageMarker = 0;				// MASCARA DA MENSAGEM - 0 A 0xFF
 
 	/* Caso de tudo certo, retorna ok */
 	return FDCAN_OK;
@@ -263,29 +278,17 @@ FDCAN_StatusTypedef CAN_Init(void)
  * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval ***NONE***
  */
-void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
-{
-	uint64_t VALUE = 0;
-	uint8_t *pValue = (uint8_t *)&VALUE;
-	/* Armazenando o tamanho da variável no buffer da CAN */
-	CAN_stream.Size_buf[Identifier] = Size;
+void CAN_Storage_INT(uint16_t Identifier, uint8_t *Buffer) {
+	/* Armazenando o tipo da variável no buffer da CAN */
+	CAN_stream.Type_buf[Identifier] = FDCAN_INT;
 
-	CAN_stream.Type_buf[Identifier] = FDCAN_POSITIVE;
+	/* Armazena o valor na memória alocada, sendo necessário armazenar byte por byte*/
+	for (int i = 0; i < INT_SIZE; i++)
+		CAN_stream.Data_buf[Identifier][i] = Buffer[i];
 
-	/* Libera a memória para que não ocorra Hard Fault */
-	free(CAN_stream.Data_buf[Identifier]);
-
-	/* Aloca o espaço necessário para armazenamento do dado*/
-	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
-
-	for (int i = 0; i < Size; i++)
-		pValue[i] = Buffer[i];
-
-	VALUE = VALUE >> 2U;
-
-	/* Armazena o valor na memória alocada*/
-	for (int i = 0; i < Size; i++)
-		CAN_stream.Data_buf[Identifier][i] = pValue[i];
+	/* Armazena o valor na memória alocada, sendo necessário armazenar byte por byte*/
+	for (int i = INT_SIZE; i < 8; i++)
+		CAN_stream.Data_buf[Identifier][i] = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -300,30 +303,8 @@ void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
  * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval ***NONE***
  */
-void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
-{
-	uint64_t VALUE = 0;
-	uint8_t *pValue = (uint8_t *)&VALUE;
+void CAN_Storage_NEGATIVE(uint16_t Identifier, uint8_t *Buffer) {
 
-	/* Armazenando o tamanho da variável no buffer da CAN */
-	CAN_stream.Size_buf[Identifier] = Size;
-
-	CAN_stream.Type_buf[Identifier] = FDCAN_NEGATIVE;
-
-	/* Libera a memória para que não ocorra Hard Fault */
-	free(CAN_stream.Data_buf[Identifier]);
-
-	/* Aloca o espaço necessário para armazenamento do dado*/
-	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
-
-	for (int i = 0; i < Size; i++)
-		pValue[i] = Buffer[i];
-
-	VALUE = VALUE >> 2U;
-
-	/* Armazena o valor na memória alocada*/
-	for (int i = 0; i < Size; i++)
-		CAN_stream.Data_buf[Identifier][i] = pValue[i];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -338,30 +319,17 @@ void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
  * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval ***NONE***
  */
-void CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
-{
-	uint64_t VALUE = 0;
-	uint8_t *pValue = (uint8_t *)&VALUE;
-
-	/* Armazenando o tamanho da variável no buffer da CAN */
-	CAN_stream.Size_buf[Identifier] = Size;
-
+void CAN_Storage_FLOAT(uint16_t Identifier, uint8_t *Buffer) {
+	/* Armazenando o tipo da variável no buffer da CAN */
 	CAN_stream.Type_buf[Identifier] = FDCAN_FLOAT;
 
-	/* Libera a memória para que não ocorra Hard Fault */
-	free(CAN_stream.Data_buf[Identifier]);
+	/* Armazena o valor na memória alocada, sendo necessário armazenar byte por byte*/
+	for (int i = 0; i < FLOAT_SIZE; i++)
+		CAN_stream.Data_buf[Identifier][i] = Buffer[i];
 
-	/* Aloca o espaço necessário para armazenamento do dado*/
-	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
-
-	for (int i = 0; i < Size; i++)
-		pValue[i] = Buffer[i];
-
-	VALUE = VALUE >> 2U;
-
-	/* Armazena o valor na memória alocada*/
-	for (int i = 0; i < Size; i++)
-		CAN_stream.Data_buf[Identifier][i] = pValue[i];
+	/* Armazena o valor na memória alocada, sendo necessário armazenar byte por byte*/
+	for (int i = FLOAT_SIZE; i < 8; i++)
+		CAN_stream.Data_buf[Identifier][i] = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -376,30 +344,13 @@ void CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
  * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval ***NONE***
  */
-void CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
-{
-	uint64_t VALUE = 0;
-	uint8_t *pValue = (uint8_t *)&VALUE;
-
-	/* Armazenando o tamanho da variável no buffer da CAN */
-	CAN_stream.Size_buf[Identifier] = Size;
-
+void CAN_Storage_DOUBLE(uint16_t Identifier, uint8_t *Buffer) {
+	/* Armazenando o tipo da variável no buffer da CAN */
 	CAN_stream.Type_buf[Identifier] = FDCAN_DOUBLE;
 
-	/* Libera a memória para que não ocorra Hard Fault */
-	free(CAN_stream.Data_buf[Identifier]);
-
-	/* Aloca o espaço necessário para armazenamento do dado*/
-	CAN_stream.Data_buf[Identifier] = malloc(Size * sizeof(uint8_t));
-
-	for (uint64_t i = 0; i < Size; i++)
-		pValue[i] = Buffer[i];
-
-	VALUE = VALUE >> 2U;
-
-	/* Armazena o valor na memória alocada*/
-	for (int i = 0; i < Size; i++)
-		CAN_stream.Data_buf[Identifier][i] = pValue[i];
+	/* Armazena o valor na memória alocada, sendo necessário armazenar byte por byte*/
+	for (int i = 0; i < DOUBLE_SIZE; i++)
+		CAN_stream.Data_buf[Identifier][i] = Buffer[i];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -412,26 +363,17 @@ void CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer)
  * @param  Identifier: Identificador da mensagem
  * @retval Valor inteiro armazenado, caso o valor não seja um inteiro retorna "FDCAN_ERRO"
  */
-int64_t CAN_Get_value(uint16_t Identifier)
-{
-	int64_t VALUE = 0;
-	uint8_t *pValue = (uint8_t *)&VALUE;
-
-	switch (CAN_stream.Type_buf[Identifier])
-	{
-	case FDCAN_POSITIVE:
-		for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
-			pValue[i] = CAN_stream.Data_buf[Identifier][i];
-		break;
-	case FDCAN_NEGATIVE:
-		for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
-			pValue[i] = CAN_stream.Data_buf[Identifier][i];
-		VALUE = -VALUE;
-		break;
-	default:
+int32_t CAN_Get_value(uint16_t Identifier) {
+	if (CAN_stream.Type_buf[Identifier] != FDCAN_INT)
+		/* Caso de errado, retorna erro */
 		return FDCAN_ERROR;
-	}
 
+	/*Variável para armazenar o valor guardado na memória*/
+	int32_t VALUE = 0;
+
+	memcpy(VALUE, CAN_stream.Data_buf[Identifier], 4);
+
+	/*Retorna o valor armazenado na memória já com o sinal correto*/
 	return VALUE;
 }
 
@@ -445,28 +387,15 @@ int64_t CAN_Get_value(uint16_t Identifier)
  * @param  Identifier: Identificador da mensagem
  * @retval Valor float armazeenado, caso o valor não seja um float retorna "FDCAN_ERRO"
  */
-float CAN_Get_value_FLOAT(uint16_t Identifier)
-{
+float CAN_Get_value_FLOAT(uint16_t Identifier) {
 	if (CAN_stream.Type_buf[Identifier] != FDCAN_FLOAT)
+		/* Caso de errado, retorna erro */
 		return FDCAN_ERROR;
 
-	uint64_t DATA_STORAGE = 0;
-	uint8_t PRECISION = 0;
-	uint8_t SIGNAL = 0;
 	float VALUE = 0;
-	uint8_t *pData_Storage = (uint8_t *)&DATA_STORAGE;
 
-	for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
-		pData_Storage[i] = CAN_stream.Data_buf[Identifier][i];
-
-	PRECISION = DATA_STORAGE & 0x3F;
-
-	SIGNAL = (DATA_STORAGE & 0x40) >> 6;
-
-	VALUE = (DATA_STORAGE >> 7) * pow(10, -PRECISION);
-
-	if (SIGNAL == 1)
-		VALUE = -VALUE;
+	/*Recupera os dados armazenados na memória*/
+	memcpy(&VALUE, CAN_stream.Data_buf[Identifier], 4);
 
 	return VALUE;
 }
@@ -481,28 +410,15 @@ float CAN_Get_value_FLOAT(uint16_t Identifier)
  * @param  Identifier: Identificador da mensagem
  * @retval Valor double armazenado, caso o valor não seja um double retorna "FDCAN_ERRO"
  */
-double CAN_Get_value_DOUBLE(uint16_t Identifier)
-{
+double CAN_Get_value_DOUBLE(uint16_t Identifier) {
 	if (CAN_stream.Type_buf[Identifier] != FDCAN_DOUBLE)
+		/* Caso de errado, retorna erro */
 		return FDCAN_ERROR;
 
-	uint64_t DATA_STORAGE = 0;
-	uint8_t PRECISION = 0;
-	uint8_t SIGNAL = 0;
 	float VALUE = 0;
-	uint8_t *pData_Storage = (uint8_t *)&DATA_STORAGE;
 
-	for (int i = 0; i < CAN_stream.Size_buf[Identifier]; i++)
-		pData_Storage[i] = CAN_stream.Data_buf[Identifier][i];
-
-	PRECISION = DATA_STORAGE & 0x1FF;
-
-	SIGNAL = (DATA_STORAGE & 0x200) >> 9;
-
-	VALUE = (DATA_STORAGE >> 10) * pow(10, -PRECISION);
-
-	if (SIGNAL == 1)
-		VALUE = -VALUE;
+	/*Recupera os dados armazenados na memória*/
+	memcpy(&VALUE, CAN_stream.Data_buf[Identifier], 8);
 
 	return VALUE;
 }
@@ -516,20 +432,22 @@ double CAN_Get_value_DOUBLE(uint16_t Identifier)
  * @brief  Função para adicionar uma mensagem no buffer de envio
  * @param  Identifier: Identificador da mensagem
  * @param  Buffer: Buffer de dados para envio
+ * @param  Size: Quantidade de byte para envio
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Buffer)
-{
+FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Buffer,
+		uint8_t Size) {
 	uint64_t TIME = HAL_GetTick();
 	uint64_t *pBuffer = &Buffer;
-	uint32_t SIZE_DATA = 0;
+	uint32_t SIZE_DATA = Size << 16U;
 
-	for (int i = 0; i < 8; i++)
-		if (Buffer >> 8 * i == 0)
-		{
-			SIZE_DATA = i << 16U;
-			break;
-		}
+	if (Size == INT_SIZE) {
+		for (int i = 0; i < 8; i++)
+			if (Buffer >> 8 * i == 0) {
+				SIZE_DATA = i << 16U;
+				break;
+			}
+	}
 
 	/* Armazena o identificador da mensagem no struct de informação (TxHeader) */
 	TxHeader.Identifier = Identifier;
@@ -538,14 +456,16 @@ FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Buffer)
 
 	while (HAL_FDCAN_GetTxFifoFreeLevel(hFDCAN) == 0)
 		if (HAL_GetTick() - TIME > TIME_TO_BREAK)
-			return;
+			return FDCAN_TIMEOUT;
 
 	/* Envia os dados recebidos na chamada (data) pela CAN, de acordo com as informações de TxHeader */
-	if (HAL_FDCAN_AddMessageToTxFifoQ(hFDCAN, &TxHeader, (uint8_t *)pBuffer) != HAL_OK)
-	{
-		/* Caso de errado, chama a função de erro */
-		Error_Handler();
-	}
+	if (HAL_FDCAN_AddMessageToTxFifoQ(hFDCAN, &TxHeader, (uint8_t*) pBuffer)
+			!= HAL_OK)
+		/* Caso de errado, retorna erro */
+		return FDCAN_ERROR;
+
+	/* Caso de tudo certo, retorna ok */
+	return FDCAN_OK;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -559,16 +479,17 @@ FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Buffer)
  * @param  Value: Valor inteiro para envio pelo barrameto
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Send(uint16_t Identifier, int64_t Value)
-{
+FDCAN_StatusTypedef CAN_Send(uint16_t Identifier, int32_t Value) {
+	uint32_t Value_Buf = 0;
 
-	if (Value >= 0)
+	memcpy(&Value_Buf, &Value, 4);
 
-		Value = (Value << 2) | FDCAN_POSITIVE;
-	else
-		Value = ((-Value) << 2) | FDCAN_NEGATIVE;
+	if (CAN_TxData(Identifier, Value_Buf, INT_SIZE) != FDCAN_OK)
+		/* Caso de errado, retorna erro */
+		return FDCAN_ERROR;
 
-	CAN_TxData(Identifier, Value);
+	/* Caso de tudo certo, retorna ok */
+	return FDCAN_OK;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -580,19 +501,20 @@ FDCAN_StatusTypedef CAN_Send(uint16_t Identifier, int64_t Value)
  * @brief  Função para tratamento e envio de valores inteiros pelo barramento
  * @param  Identifier: Identificador da mensagem
  * @param  Value: Valor float para envio pelo barrameto
- * @param  Precision: Número de casas decimais de precisão
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Send_Float(uint16_t Identifier, float Value, uint8_t Precision)
-{
-	int64_t VALOR = Value * pow(10, Precision);
+FDCAN_StatusTypedef CAN_Send_Float(uint16_t Identifier, float Value) {
 
-	if (Value >= 0)
-		VALOR = (VALOR << 9) | 0x000 | (Precision << 2) | FDCAN_FLOAT;
-	else
-		VALOR = ((-VALOR) << 9) | 0x100 | (Precision << 2) | FDCAN_FLOAT;
+	uint32_t Value_Buf = 0;
 
-	CAN_TxData(Identifier, VALOR);
+	memcpy(&Value_Buf, &Value, 4);
+
+	if (CAN_TxData(Identifier, Value_Buf, FLOAT_SIZE) != FDCAN_OK)
+		/* Caso de errado, retorna erro */
+		return FDCAN_ERROR;
+
+	/* Caso de tudo certo, retorna ok */
+	return FDCAN_OK;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -604,19 +526,19 @@ FDCAN_StatusTypedef CAN_Send_Float(uint16_t Identifier, float Value, uint8_t Pre
  * @brief  Função para tratamento e envio de valores inteiros pelo barramento
  * @param  Identifier: Identificador da mensagem
  * @param  Value: Valor double para envio pelo barrameto
- * @param  Precision: Número de casas decimais de precisão
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Send_Double(uint16_t Identifier, double Value, uint8_t Precision)
-{
-	int64_t VALOR = Value * pow(10, Precision);
+FDCAN_StatusTypedef CAN_Send_Double(uint16_t Identifier, double Value) {
+	uint32_t Value_Buf = 0;
 
-	if (Value >= 0)
-		VALOR = (VALOR << 12) | 0x000 | (Precision << 2) | FDCAN_DOUBLE;
-	else
-		VALOR = ((-VALOR) << 12) | 0x800 | (Precision << 2) | FDCAN_DOUBLE;
+	memcpy(&Value_Buf, &Value, 8);
 
-	CAN_TxData(Identifier, VALOR);
+	if (CAN_TxData(Identifier, Value_Buf, DOUBLE_SIZE) != FDCAN_OK)
+		/* Caso de errado, retorna erro */
+		return FDCAN_ERROR;
+
+	/* Caso de tudo certo, retorna ok */
+	return FDCAN_OK;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

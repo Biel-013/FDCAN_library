@@ -17,11 +17,11 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <FDCAN.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "CAN.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,12 +44,20 @@ FDCAN_HandleTypeDef hfdcan1;
 
 /* USER CODE BEGIN PV */
 extern uint64_t buffer_time[32];
+
+int64_t INTEIRO_Tx = 0;
+float FLOAT_Tx = 0;
+uint8_t Precisao_FLOAT = 0;
+double DOUBLE_Tx = 0;
+uint8_t Precisao_DOUBLE = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_FDCAN1_Init(void);
+static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -57,14 +65,6 @@ static void MX_FDCAN1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 // FDCAN1 Defines
-int64_t INTEIRO_Tx = 1225;
-int64_t INTEIRO_Rx = 0;
-float FLOAT_Tx = 145.5151;
-float FLOAT_Rx = 0;
-uint8_t Precisao_FLOAT = 3;
-double DOUBLE_Tx = 124.4134515;
-double DOUBLE_Rx = 0;
-uint8_t Precisao_DOUBLE = 7;
 /* USER CODE END 0 */
 
 /**
@@ -95,6 +95,9 @@ int main(void) {
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_FDCAN1_Init();
+
+	/* Initialize interrupts */
+	MX_NVIC_Init();
 	/* USER CODE BEGIN 2 */
 	CAN_Init();
 
@@ -103,16 +106,11 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		CAN_Send(100, INTEIRO_Tx);
-		CAN_Send_Float(101, FLOAT_Tx, Precisao_FLOAT);
-		CAN_Send_Double(102, DOUBLE_Tx, Precisao_DOUBLE);
-		INTEIRO_Rx = CAN_Get_value(100);
-		FLOAT_Rx = CAN_Get_value_FLOAT(101);
-		DOUBLE_Rx = CAN_Get_value_DOUBLE(102);
+
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_1);
+		HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_6);
 	}
 	/* USER CODE END 3 */
 }
@@ -131,10 +129,14 @@ void SystemClock_Config(void) {
 
 	/** Configure the main internal regulator output voltage
 	 */
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
 	while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {
 	}
+
+	/** Macro to configure the PLL clock source
+	 */
+	__HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
 
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
@@ -143,11 +145,11 @@ void SystemClock_Config(void) {
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLM = 2;
-	RCC_OscInitStruct.PLL.PLLN = 16;
+	RCC_OscInitStruct.PLL.PLLM = 1;
+	RCC_OscInitStruct.PLL.PLLN = 120;
 	RCC_OscInitStruct.PLL.PLLP = 2;
 	RCC_OscInitStruct.PLL.PLLQ = 4;
-	RCC_OscInitStruct.PLL.PLLR = 2;
+	RCC_OscInitStruct.PLL.PLLR = 8;
 	RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
 	RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
 	RCC_OscInitStruct.PLL.PLLFRACN = 0;
@@ -162,15 +164,25 @@ void SystemClock_Config(void) {
 			| RCC_CLOCKTYPE_D1PCLK1;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
 	RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV1;
-	RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV1;
-	RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV1;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
+	RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
+	RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
 		Error_Handler();
 	}
+}
+
+/**
+ * @brief NVIC Configuration.
+ * @retval None
+ */
+static void MX_NVIC_Init(void) {
+	/* FDCAN1_IT0_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn, 15, 0);
+	HAL_NVIC_EnableIRQ(FDCAN1_IT0_IRQn);
 }
 
 /**
@@ -194,13 +206,13 @@ static void MX_FDCAN1_Init(void) {
 	hfdcan1.Init.TransmitPause = DISABLE;
 	hfdcan1.Init.ProtocolException = DISABLE;
 	hfdcan1.Init.NominalPrescaler = 1;
-	hfdcan1.Init.NominalSyncJumpWidth = 7;
-	hfdcan1.Init.NominalTimeSeg1 = 42;
-	hfdcan1.Init.NominalTimeSeg2 = 27;
-	hfdcan1.Init.DataPrescaler = 2;
-	hfdcan1.Init.DataSyncJumpWidth = 12;
-	hfdcan1.Init.DataTimeSeg1 = 12;
-	hfdcan1.Init.DataTimeSeg2 = 12;
+	hfdcan1.Init.NominalSyncJumpWidth = 13;
+	hfdcan1.Init.NominalTimeSeg1 = 86;
+	hfdcan1.Init.NominalTimeSeg2 = 13;
+	hfdcan1.Init.DataPrescaler = 25;
+	hfdcan1.Init.DataSyncJumpWidth = 1;
+	hfdcan1.Init.DataTimeSeg1 = 2;
+	hfdcan1.Init.DataTimeSeg2 = 1;
 	hfdcan1.Init.MessageRAMOffset = 0;
 	hfdcan1.Init.StdFiltersNbr = 0;
 	hfdcan1.Init.ExtFiltersNbr = 0;
@@ -212,7 +224,7 @@ static void MX_FDCAN1_Init(void) {
 	hfdcan1.Init.RxBufferSize = FDCAN_DATA_BYTES_8;
 	hfdcan1.Init.TxEventsNbr = 0;
 	hfdcan1.Init.TxBuffersNbr = 0;
-	hfdcan1.Init.TxFifoQueueElmtsNbr = 32;
+	hfdcan1.Init.TxFifoQueueElmtsNbr = 1;
 	hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
 	hfdcan1.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
 	if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK) {
@@ -236,10 +248,16 @@ static void MX_GPIO_Init(void) {
 	__HAL_RCC_GPIOH_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOD_CLK_ENABLE();
 	__HAL_RCC_GPIOE_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0 | GPIO_PIN_14, GPIO_PIN_RESET);
+
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOD,
+			GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6,
+			GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
@@ -250,6 +268,15 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : PD2 PD3 PD4 PD5
+	 PD6 */
+	GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5
+			| GPIO_PIN_6;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : PE1 */
 	GPIO_InitStruct.Pin = GPIO_PIN_1;

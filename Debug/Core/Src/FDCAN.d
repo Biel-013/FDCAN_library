@@ -1,4 +1,4 @@
-Core/Src/CAN.o: ../Core/Src/CAN.c ../Core/Inc/CAN.h \
+Core/Src/FDCAN.o: ../Core/Src/FDCAN.c ../Core/Inc/FDCAN.h \
  ../Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h7xx.h \
  ../Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h743xx.h \
  ../Drivers/CMSIS/Include/core_cm7.h \
@@ -28,7 +28,7 @@ Core/Src/CAN.o: ../Core/Src/CAN.c ../Core/Inc/CAN.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_i2c_ex.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr_ex.h
-../Core/Inc/CAN.h:
+../Core/Inc/FDCAN.h:
 ../Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h7xx.h:
 ../Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h743xx.h:
 ../Drivers/CMSIS/Include/core_cm7.h:

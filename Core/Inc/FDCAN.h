@@ -9,15 +9,22 @@
 #ifndef CAN_LOG_H_
 #define CAN_LOG_H_
 
+#define CHIP_STM32H7
+
+#ifdef CHIP_STM32H7
 #include "stm32h7xx.h"
+#endif
+
+#ifdef CHIP_STM32G0
+#include "stm32g0xx_hal.h"
+#endif
 
 #define CAN_IDS_NUMBER 400
 
 /* USADO PARA REGISTRAR UM BUFFER DA CAN */
 typedef enum
 {
-	FDCAN_POSITIVE,
-	FDCAN_NEGATIVE,
+	FDCAN_INT,
 	FDCAN_FLOAT,
 	FDCAN_DOUBLE,
 	FDCAN_FREE
@@ -32,10 +39,8 @@ typedef enum
 
 typedef struct
 {
-	uint8_t *Data_buf[CAN_IDS_NUMBER];
-	uint8_t Size_buf[CAN_IDS_NUMBER];
+	uint8_t Data_buf[CAN_IDS_NUMBER][8];
 	Data_type_t Type_buf[CAN_IDS_NUMBER];
-
 } CAN_Buffer_t;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,30 +108,15 @@ FDCAN_StatusTypedef CAN_Init(void);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*---- ARMAZENAMENTO DE VALORES INTEIROS POSITIVOS --------------------------------------------------------------*/
+/*---- ARMAZENAMENTO DE VALORES INTEIROS --------------------------------------------------------------*/
 
 /**
- * @brief  Função para armazenamento de valores inteiros positivos, assim como informação de tipo e tamanho
+ * @brief  Função para armazenamento de valores inteiros, assim como informação de tipo
  * @param  Identifier: Identificador da mensagem
- * @param  Size: Espaço necessário para armazenamento da mensagem
  * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval ***NONE***
  */
-void CAN_Storage_POSITIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*---- ARMAZENAMENTO DE VALORES INTEIROS NEGATIVOS --------------------------------------------------------------*/
-
-/**
- * @brief  Função para armazenamento de valores inteiros negativos, assim como informação de tipo e tamanho
- * @param  Identifier: Identificador da mensagem
- * @param  Size: Espaço necessário para armazenamento da mensagem
- * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
- * @retval ***NONE***
- */
-void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
+void CAN_Storage_INT(uint16_t Identifier, uint8_t *Buffer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,13 +124,12 @@ void CAN_Storage_NEGATIVE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
 /*---- ARMAZENAMENTO DE VALORES FLOATS --------------------------------------------------------------*/
 
 /**
- * @brief  Função para armazenamento de valores floats, assim como informação de tipo e tamanho
+ * @brief  Função para armazenamento de valores floats, assim como informação de tipo
  * @param  Identifier: Identificador da mensagem
- * @param  Size: Espaço necessário para armazenamento da mensagem
  * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval ***NONE***
  */
-void CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
+void CAN_Storage_FLOAT(uint16_t Identifier, uint8_t *Buffer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,13 +137,12 @@ void CAN_Storage_FLOAT(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
 /*---- ARMAZENAMENTO DE VALORES DOUBLES --------------------------------------------------------------*/
 
 /**
- * @brief  Função para armazenamento de valores doubles, assim como informação de tipo e tamanho
+ * @brief  Função para armazenamento de valores doubles, assim como informação de tipo
  * @param  Identifier: Identificador da mensagem
- * @param  Size: Espaço necessário para armazenamento da mensagem
  * @param  Buffer: Ponteiro para os buffer que contém os dados e as informações para seu armazenamento
  * @retval ***NONE***
  */
-void CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
+void CAN_Storage_DOUBLE(uint16_t Identifier, uint8_t *Buffer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -166,7 +154,7 @@ void CAN_Storage_DOUBLE(uint8_t Identifier, uint8_t Size, uint8_t *Buffer);
  * @param  Identifier: Identificador da mensagem
  * @retval Valor inteiro armazenado, caso o valor não seja um inteiro retorna "FDCAN_ERRO"
  */
-int64_t CAN_Get_value(uint16_t Identifier);
+int32_t CAN_Get_value(uint16_t Identifier);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,11 +187,12 @@ double CAN_Get_value_DOUBLE(uint16_t Identifier);
 
 /**
  * @brief  Função para adicionar uma mensagem no buffer de envio
- * @param  Identifier: Identificador da mensagem
+ * @param  Identifier: Identificador da mensagemss
  * @param  Buffer: Buffer de dados para envio
+ * @param  Size: Quantidade de byte para envio
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Buffer);
+FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Buffer, uint8_t Size);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -216,7 +205,7 @@ FDCAN_StatusTypedef CAN_TxData(uint16_t Identifier, uint64_t Buffer);
  * @param  Value: Valor inteiro para envio pelo barrameto
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Send(uint16_t Identifier, int64_t Value);
+FDCAN_StatusTypedef CAN_Send(uint16_t Identifier, int32_t Value);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -227,10 +216,9 @@ FDCAN_StatusTypedef CAN_Send(uint16_t Identifier, int64_t Value);
  * @brief  Função para tratamento e envio de valores inteiros pelo barramento
  * @param  Identifier: Identificador da mensagem
  * @param  Value: Valor float para envio pelo barrameto
- * @param  Precision: Número de casas decimais de precisão
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Precision);
+FDCAN_StatusTypedef CAN_Send_Float(uint16_t Identifier, float Data);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -241,9 +229,8 @@ FDCAN_StatusTypedef CAN_Send_Float(uint16_t Identifier, float Data, uint8_t Prec
  * @brief  Função para tratamento e envio de valores inteiros pelo barramento
  * @param  Identifier: Identificador da mensagem
  * @param  Value: Valor double para envio pelo barrameto
- * @param  Precision: Número de casas decimais de precisão
  * @retval Status de execução da função
  */
-FDCAN_StatusTypedef CAN_Send_Double(uint16_t Identifier, double Data, uint8_t Precision);
+FDCAN_StatusTypedef CAN_Send_Double(uint16_t Identifier, double Data);
 
 #endif /* CAN_LOG_H_ */
